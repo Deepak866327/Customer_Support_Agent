@@ -1,0 +1,16 @@
+{
+  "brand": "SpotifyCares",
+  "conversations": 28280,
+  "customer_messages": 48543,
+  "brand_messages": 43265,
+  "pairs": 43092,
+  "opening_pairs": 27023,
+  "substantive_pairs": 28460,
+  "conversation_handoff_rate": 0.4219,
+  "train_pairs": 37041,
+  "eval_pairs": 6051,
+  "train_conversations": 23721,
+  "eval_conversations": 4556,
+  "date_min": "2013-09-18 20:33:59+00:00",
+  "date_max": "2017-12-03 22:56:04+00:00"
+}

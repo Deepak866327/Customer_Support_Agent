@@ -1,0 +1,7 @@
+data/raw/
+docs/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+data/cache/chat_llm/

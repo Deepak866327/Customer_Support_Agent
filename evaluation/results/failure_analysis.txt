@@ -1,0 +1,200 @@
+==============================================================================
+TOP FAILURE MODES - discovered from evaluation output, not hand-written
+==============================================================================
+Golden set: 200 examples.  Intent wrong: 85.  Action wrong: 43.
+
+------------------------------------------------------------------------------
+1. Confidently wrong intent despite strong, agreeing evidence
+   Affected: 49 of 200 examples (24.5%)
+
+   Why it fails: The retriever found similar, consistent cases and the classifier still chose the wrong label - the two intents are genuinely close in meaning (e.g. a billing complaint phrased as a subscription question). Training labels came from keyword rules, which cannot separate these pairs.
+
+   Proposed fix: Replace the keyword-derived training labels for the confusable pairs, and merge intents that the confusion matrix shows are not separable in practice.
+
+  Example 1 - g001 (difficulty: hard)
+    Customer message : #spotiamb is completely fucking up my Spotify and it is extremely irritating. Hey can you patch this hack already? Come on.
+    Human label      : intent=other  action=ESCALATE
+    System predicted : intent=account_compromised (confidence 0.85)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'account_compromised' always requires a human: Security-sensitive and account-specific. Historically 70.6% of these went to a human. A wrong automated an
+    Closest precedent (sim 0.81, intent account_compromised):
+      customer said : the Spotiamb hack thing is ruining Spotify...please help!!! What do I do to make it go away?
+      spotify replied: Hey! We're sorry to hear that. Check out <link> for what to do next
+    Spotify actually replied: Hi Kelly, help's here! Can you DM us your account's email address? We'll take a look backstage /DV <link>
+
+  Example 2 - g002 (difficulty: medium)
+    Customer message : I somehow managed to disable my spotify account how do i fix this?
+    Human label      : intent=login_access  action=ESCALATE
+    System predicted : intent=account_compromised (confidence 0.52)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'account_compromised' always requires a human: Security-sensitive and account-specific. Historically 70.6% of these went to a human. A wrong automated an
+    Closest precedent (sim 0.74, intent account_compromised):
+      customer said : My piece of shit account was hacked and I was directed to create a new account instead of them fixing it! #Spotify
+      spotify replied: Hey there, we're sorry to hear that. Check out <link> for what to do next
+    Spotify actually replied: Hey, help's arrived! We've just replied to your DM. Let's carry on chatting there
+
+------------------------------------------------------------------------------
+2. Escalated a case that could have been answered
+   Affected: 28 of 200 examples (14.0%)
+
+   Why it fails: Usually the intent rule fired (the predicted intent's default is ESCALATE) or retrieval fell below threshold. Cheap per case, but this is the mode that limits how much work the system can actually take on.
+
+   Proposed fix: Make `subscription_manage`-style conditional intents the norm rather than the exception: decide from evidence quality instead of an intent-level default.
+
+  Example 1 - g023 (difficulty: medium)
+    Customer message : I see that if you're a student you can get spotify and hulu for 4.99 I'm not a student so i pay the full 9.99 can I also get hulu with spotify for the one price, and if so how?
+    Human label      : intent=subscription_manage  action=AUTO_HANDLE
+    System predicted : intent=student_discount (confidence 0.98)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'student_discount' always requires a human: Verification state lives in the customer's account and in a third-party system Spotify support cannot inspect
+    Closest precedent (sim 0.87, intent student_discount):
+      customer said : Hi! So if i sign up to Spotify Premium and I'm a student, I get Spotify and Hulu for just $4.99?
+      spotify replied: Hi! That's right. You'll get Hulu's Limited Commercials plan with the student discount. We have more info here: <link>
+    Spotify actually replied: Hi Bryan! We're afraid you can get the Hulu bundle when you're subscribed to the student discount only. Users on the regular Premium won't be eligible
+
+  Example 2 - g024 (difficulty: hard)
+    Customer message : hi, i don't have cc to get the student discount. Is there any payment options?
+    Human label      : intent=student_discount  action=AUTO_HANDLE
+    System predicted : intent=student_discount (confidence 1.00)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'student_discount' always requires a human: Verification state lives in the customer's account and in a third-party system Spotify support cannot inspect
+    Closest precedent (sim 0.74, intent student_discount):
+      customer said : if you have an Card can you get the student discount of €4.99?
+      spotify replied: Hey! If you're currently enrolled and attending classes in one of our accredited schools, you can sign up for the student discount
+    Spotify actually replied: Hi Iqram! We're afraid that you'll need a recurring payment method for the student discount. You can read more here: <link> Hope this clears things up
+
+------------------------------------------------------------------------------
+3. Wrong intent where retrieval was also weak
+   Affected: 19 of 200 examples (9.5%)
+
+   Why it fails: The message sits in a sparse region of the embedding space: the closest historical case is below the 0.55 similarity floor, so neither the classifier nor the retriever had a good anchor. These are usually short, slangy or off-distribution messages.
+
+   Proposed fix: Expand the index beyond opening messages, or fall back to a lexical retriever when dense similarity is low - the TF-IDF baseline scored higher intent_recall@5 (0.715 vs 0.630).
+
+  Example 1 - g007 (difficulty: hard)
+    Customer message : Still no response from . Said realize situation isn't ideal. Uh ok. Privacy violation not a big deal. At all. <link>
+    Human label      : intent=other  action=ESCALATE
+    System predicted : intent=account_compromised (confidence 0.71)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'account_compromised' always requires a human: Security-sensitive and account-specific. Historically 70.6% of these went to a human. A wrong automated an
+    Closest precedent (sim 0.46, intent account_compromised):
+      customer said : shitty security. Someone stole my account. TERRIBLE service. Very Disappointed.
+      spotify replied: Hey, we're sorry to hear that. Check out <link> for what to do next
+    Spotify actually replied: Hey, sorry for the delay. We've just replied to your DM with a little more info. We'll carry on chatting there
+
+  Example 2 - g017 (difficulty: medium)
+    Customer message : Do you all have an educational out reach? I have a project I would like my students to do that would involve some help from you all!
+    Human label      : intent=other  action=ESCALATE
+    System predicted : intent=student_discount (confidence 0.53)  action=ESCALATE
+    Deciding rule    : intent_requires_human
+    Stated reason    : Intent 'student_discount' always requires a human: Verification state lives in the customer's account and in a third-party system Spotify support cannot inspect
+    Closest precedent (sim 0.50, intent student_discount):
+      customer said : would loooove to take my students from #ScriptEd on a field trip to your office this year..we did so last year and for a lot of students was VERY mind
+      spotify replied: Hey David! We suggest getting in touch with our Press team at <link> They'll be able to help you with this 🙂
+    Spotify actually replied: Hey there! We don't have any info on this right now, but we'll let the right team know it's something you'd like to see
+
+------------------------------------------------------------------------------
+4. Abstained (`other`) on a message that had a real intent
+   Affected: 15 of 200 examples (7.5%)
+
+   Why it fails: No intent cleared the 0.45 confidence floor, so the classifier abstained. The abstention is safe - it escalates - but it is a miss: these messages did have a clear intent a human could name.
+
+   Proposed fix: Lower the floor to ~0.30 (measured on this same golden set: macro-F1 0.595 vs 0.587) or calibrate probabilities, so the floor means the same thing across intents.
+
+  Example 1 - g177 (difficulty: hard)
+    Customer message : "The next 30 minutes are ad free..." *5 minutes later* "The next 30 minutes are ad free"....go away
+    Human label      : intent=playback_error  action=AUTO_HANDLE
+    System predicted : intent=other (confidence 0.38)  action=ESCALATE
+    Deciding rule    : intent_abstained
+    Stated reason    : No intent reached the confidence threshold (0.38 < 0.45), so the request is not understood well enough to answer automatically.
+    Closest precedent (sim 0.78, intent other):
+      customer said : ugh, if you say the next thirty minutes are ad free one more time!
+      spotify replied: Hey, that doesn't sound good! Did the app crash at any point during the 30 minutes? That can cause the ad-free time to reset
+    Spotify actually replied: Hey, that doesn't sound good! Did the app crash at any point during the 30 minutes? That can cause the ad-free time to reset
+
+  Example 2 - g179 (difficulty: easy)
+    Customer message : How long do I need to wait until I get my account back? Someone changed my email address and now I have no access to my account. I already emailed the account changed email, but I have no idea how lon
+    Human label      : intent=account_compromised  action=ESCALATE
+    System predicted : intent=other (confidence 0.27)  action=ESCALATE
+    Deciding rule    : intent_abstained
+    Stated reason    : No intent reached the confidence threshold (0.27 < 0.45), so the request is not understood well enough to answer automatically.
+    Closest precedent (sim 0.66, intent account_compromised):
+      customer said : Someone just changed my account e-mail address and now I am locked out of my account. How can I regain access? Account stolen.
+      spotify replied: Hey Jason, we're sorry to hear that. Check out <link> for what to do next
+    Spotify actually replied: Hey! Sorry to hear that. Can you DM us your account's username or email address? We'll take a look under the hood /CP <link>
+
+------------------------------------------------------------------------------
+5. Auto-handled a case a human labelled ESCALATE
+   Affected: 12 of 200 examples (6.0%)
+
+   Why it fails: Retrieval found confident, agreeing precedents, so every rule passed - but the human judged the case as needing a person for reasons the evidence does not encode (multi-issue message, customer already escalated, tone).
+
+   Proposed fix: Raise `min_top_similarity`, or add a rule that escalates when the message contains more than one distinct request.
+
+  Example 1 - g065 (difficulty: medium)
+    Customer message : I have moved to the US but you won't accept my new MasterCard so I can't change country
+    Human label      : intent=subscription_manage  action=ESCALATE
+    System predicted : intent=subscription_manage (confidence 0.78)  action=AUTO_HANDLE
+    Deciding rule    : confident_and_grounded
+    Stated reason    : Intent 'subscription_manage' predicted with 0.78 confidence, 5 consistent precedents (100% agreement, closest 0.71), and only 20% of them needed a human.
+    Closest precedent (sim 0.71, intent subscription_manage):
+      customer said : how do I change my payment details (my new card is issued in another country) without changing my country (I haven't moved)
+      spotify replied: Hey! You can update your payment info following the steps at <link> We hope that helps
+    Spotify actually replied: Hey Jon, help's here! Can you DM us your account's email address or username? We'll take a look backstage /RH <link>
+
+  Example 2 - g069 (difficulty: hard)
+    Customer message : Min ko ga bisa berlanggana promo ya? Pdhl saldo cukup, tp di bilangnya saldonya ga mencukupi
+    Human label      : intent=subscription_manage  action=ESCALATE
+    System predicted : intent=subscription_manage (confidence 0.85)  action=AUTO_HANDLE
+    Deciding rule    : confident_and_grounded
+    Stated reason    : Intent 'subscription_manage' predicted with 0.85 confidence, 5 consistent precedents (100% agreement, closest 0.69), and only 20% of them needed a human.
+    Closest precedent (sim 0.69, intent subscription_manage):
+      customer said : Hi untuk promo 3 bulan 49.900 berlaku untuk sdh pernah pakai premium gak ya? Atau utk pelanggan baru saja? <link>
+      spotify replied: Hey there! We can help out in English via Twitter, but we also have Bahasa support via email at <link>
+    Spotify actually replied: Hey there! We can help out in English via Twitter, but we also have Indonesian support via email at <link>
+
+------------------------------------------------------------------------------
+6. Auto-handled an account-sensitive case
+   Affected: 3 of 200 examples (1.5%)
+
+   Why it fails: The intent classifier put a billing / login / account-security message into a safe-looking intent, so the escalation layer never saw the intent rule that would have forced a human. Escalation inherits every classifier error on these five intents.
+
+   Proposed fix: Add a message-level safety net independent of predicted intent: if the raw text matches account-specific patterns (charged, refund, password, hacked), escalate regardless of the predicted intent. Cheap, and it removes the dependency on being right twice.
+
+  Example 1 - g079 (difficulty: easy)
+    Customer message : I have a premium account that I can't listen to! My login defaults to my facebook account which was a free account. I need to disassociate my FB account from my Spotify account. Can you assist?
+    Human label      : intent=login_access  action=ESCALATE
+    System predicted : intent=subscription_manage (confidence 0.48)  action=AUTO_HANDLE
+    Deciding rule    : confident_and_grounded
+    Stated reason    : Intent 'subscription_manage' predicted with 0.48 confidence, 5 consistent precedents (100% agreement, closest 0.68), and only 40% of them needed a human.
+    Closest precedent (sim 0.68, intent subscription_manage):
+      customer said : I want to reactivate my Spotify account can you help me please
+      spotify replied: Hi Christopher! Could you send us your account's email address? We'll take a look backstage
+    Spotify actually replied: Hi there, that doesn't sound good! Can you DM us your account's email address? We'll take a look backstage /AK <link>
+
+  Example 2 - g080 (difficulty: medium)
+    Customer message : No hulu anymore randomly. Hulu said they can't do anything & it's on ur end. Help forums on your site said to talk via here?
+    Human label      : intent=student_discount  action=ESCALATE
+    System predicted : intent=subscription_manage (confidence 0.60)  action=AUTO_HANDLE
+    Deciding rule    : confident_and_grounded
+    Stated reason    : Intent 'subscription_manage' predicted with 0.60 confidence, 5 consistent precedents (60% agreement, closest 0.72), and only 0% of them needed a human.
+    Closest precedent (sim 0.41, intent subscription_manage):
+      customer said : Ever since Roku had their latest upgrade Spotify doesn't work. I can see both of my accounts but I can't get into them.
+      spotify replied: Hey Steve! We're changing the availability of our apps on some TVs. You can find more info here: <link>
+    Spotify actually replied: Hey there, help's here! Can you DM us your account's email address? We'll take a look under the hood /ZO <link>
+
+==============================================================================
+NOT MEASURABLE OFFLINE (needs generated replies / judge scores)
+==============================================================================
+  - Reply not supported by cited evidence
+      needs: generated reply + evidence_ids
+      run  : python -m evaluation.run  (costs API calls)
+  - Invented policy / unsupported promise in a reply
+      needs: generated reply + judge scores
+      run  : python -m evaluation.run, then judge rubric criterion `no_unsupported_claims`
+  - Reply quality worse than pasting the top precedent verbatim
+      needs: judge scores for `retrieved_verbatim` vs `proposed`
+      run  : python -m evaluation.run (both systems are already wired up)
+
+These are listed so the gap is explicit. They are NOT included in the ranked
+modes above, because no evidence for them exists in the offline artifacts.

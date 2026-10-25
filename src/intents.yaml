@@ -1,0 +1,278 @@
+# SpotifyCares intent taxonomy.
+#
+# Derived from the brand's own data, not imported from a benchmark: TF-IDF + KMeans
+# (k=14) over 26,481 opening customer messages produced separable clusters, which were
+# merged by hand into the 11 intents below plus an honest `other` bucket.
+#
+# `escalation` is the DEFAULT for the intent, chosen from the measured historical
+# human-handoff rate for that slice (DATA_ANALYSIS.md section 3). It is a prior, not a
+# verdict: src/escalation.py can override it in either direction based on retrieved
+# evidence and classifier confidence.
+#
+# `patterns` are high-precision regexes used only for WEAK SUPERVISION of the training
+# set. They never touch the golden set, which is hand-labelled. Intents are matched in
+# the order they appear in this file, most specific first.
+
+intents:
+
+  account_compromised:
+    description: >
+      Someone other than the customer has access to the account - playlists changed,
+      unknown devices, unrecognised activity, or an outright hijack.
+    escalation: escalate
+    escalation_reason: >
+      Security-sensitive and account-specific. Historically 70.6% of these went to a
+      human. A wrong automated answer here can lock a customer out or leave an
+      attacker in place, so this intent never auto-handles.
+    examples:
+      - "My account got hacked fam, help ya boy out. Used same account since 2013, you don't understand how heartbroken I am"
+      - "Someone seriously hacked my Spotify and deleted all my playlists, that is the devils work right there."
+      - "get whoever tf is on my spotify off, they're ruining my daily mixes, I pay for your goddamn service"
+      - "I just got my account stolen. I can login with FB, but they changed the e-mail and cannot change my password."
+    patterns:
+      - "hack(?:ed|ing)?\\b"
+      - "account (?:got |was )?(?:stolen|hijack)"
+      - "someone (?:else )?(?:is |has |just )?(?:on|using|in|accessed|logged into) my (?:account|spotify)"
+      - "unauthori[sz]ed"
+      - "(?:didn'?t|never|not) (?:create|sign(?:ed)? up for|make) (?:this|an|a) account"
+      - "someone (?:else )?(?:tried|is trying) to"
+
+  student_discount:
+    description: >
+      Anything about the student plan: eligibility, verification through the third-party
+      checker, being charged the full price while a student, or re-verification.
+    escalation: escalate
+    escalation_reason: >
+      Verification state lives in the customer's account and in a third-party system
+      Spotify support cannot inspect from Twitter. 82.7% historical handoff.
+    examples:
+      - "Hi. I accidently subsribed via Student plan. Money was taken out of my card but i cancelled the verification proccess. Can you help ?"
+      - "my subscription says premium and I was charged premium, but I had a student subscription and it says I still do. I am still a student. help :)"
+      - "got charged full amount. Still a student. Please help"
+      - "I can't - unidays doesn't recognise my institution (Paragon Skills For Industry)"
+    patterns:
+      - "\\bstudent\\b"
+      - "unidays|sheerid"
+
+  family_plan:
+    description: >
+      Family / Premium for Family: setting it up, sending or accepting invites, members
+      still showing as Free, address verification, adding or removing members.
+    escalation: escalate
+    escalation_reason: >
+      Requires inspecting multiple linked accounts and their billing state. 82.7%
+      historical handoff.
+    examples:
+      - "Hello I would like to Family account. my son has already an account with you. How can we do this?"
+      - "I subscribed for premium for family & a family member's account on the mobile app still lists as FREE & they get ads. ???"
+      - "having technical issues. Won't let my daughter accept the premium for family invite. She gets an oops, something went wrong."
+      - "I need some help with my family plan..."
+    patterns:
+      - "family (?:plan|premium|account|member|invite)"
+      - "premium for family"
+
+  billing_charge:
+    description: >
+      A disputed, unexpected, duplicate or continuing charge, or a refund request.
+      Distinguished from subscription_manage by being about money already taken.
+    escalation: escalate
+    escalation_reason: >
+      Highest measured handoff rate in the corpus at 90.3%. Resolving it needs payment
+      records. Auto-handling a refund promise is the single most expensive mistake this
+      system can make.
+    examples:
+      - "I have cancelled my subscription with you a while back but was still charged 9.99 yesterday"
+      - "I've been trying to cancel my subscription for two months now, and this makes the third month you've charged me. Send help! SOS"
+      - "Really need help, my credit card was charged twice with an hour interval of spotify (the student promo)"
+      - "SO MUCH MONEY WASTED BC MY OLD ACCOUNT HAS BEEN BEING CHARGED PREMIUM THIS WHOLE TIME"
+    patterns:
+      - "charg(?:e|ed|es|ing)\\b"
+      - "refund|reimburse|money back"
+      - "billed|double.?bill|invoice|receipt"
+      - "took (?:my )?money|taken (?:my )?money"
+
+  subscription_manage:
+    description: >
+      Managing the subscription itself rather than a charge: how to cancel, downgrade,
+      upgrade to Premium, change or update a payment method, restart a lapsed plan.
+    escalation: conditional
+    escalation_reason: >
+      Genuinely mixed. "How do I cancel?" is a documented, reusable answer and should
+      auto-handle. "I cancelled and it did not take" is account state and must escalate.
+      The escalation layer decides using evidence agreement, not the intent alone.
+    examples:
+      - "Maybe I'm dumb- but I cannot figure out how to pay for premium again on my iPhone. #takemymoney"
+      - "how do i cancel my premium subscription"
+      - "does anyone know how to change the card on my spotify account"
+      - "admin, apakah bisa bayar langganan spotify pakai pulsa operator XL?"
+    patterns:
+      - "cancel(?:ling|led|lation)?\\b"
+      - "unsubscrib|downgrade|upgrade"
+      - "change (?:my )?(?:card|payment|billing)"
+      - "how (?:do|can) i (?:pay|subscribe|get premium)"
+      - "renew|reactivate"
+      # Entitlement not applied: paid but the account still shows Free.
+      - "still (?:in |on |shows? |says? )?free"
+      - "already (?:paid|subscribed|bought|purchased)"
+      - "proof of purchase"
+      - "premium .{0,25}(?:but|and) .{0,15}free"
+      - "\\bpromo(?:tion)?\\b"
+      - "free trial"
+
+  login_access:
+    description: >
+      Cannot get into the account: forgotten or non-arriving password reset, login loop,
+      Facebook-linked login failure, wrong email on file, account locked.
+    escalation: escalate
+    escalation_reason: >
+      83.5% historical handoff. Identity verification cannot happen over public Twitter.
+    examples:
+      - "I was logged out, can't log in again? Used save password. I tried to create a new password, but don't receive mail."
+      - "I can't login to my account & I can't find a customer service. Please help. NEED MUSIC"
+      - "why does spotify keep logging me out on every device"
+      - "I never got the password reset email, checked spam too"
+    patterns:
+      # Tolerant of the emoji/punctuation padding people use ("cant 🙂 log 🙂 in").
+      - "log(?:ging|ged)?\\W{0,4}(?:in|out)\\b|\\blogin\\b|\\bsign\\W{0,4}in\\b"
+      - "password"
+      - "locked out|can'?t (?:get in|access my account)"
+      - "reset (?:my )?(?:email|account)"
+      - "(?:dis)?connect(?:ing|ed)? my (?:account|spotify).{0,20}facebook"
+      - "unlink.{0,20}facebook|facebook.{0,20}unlink"
+      - "confirm my account"
+      - "verify (?:my )?(?:email|account)"
+
+  content_unavailable:
+    description: >
+      A song, album, artist, podcast or entire market is missing from the catalogue, or
+      the customer is asking for content to be added or for Spotify to launch in a
+      country.
+    escalation: auto
+    escalation_reason: >
+      Only 19.6% historical handoff. The honest answer is a stable licensing policy
+      statement that does not depend on the customer's account, so it is safely reusable.
+    examples:
+      - "what the heck ? why is santa clause lane x hillary duff and winter wonderland x jason mraz not available ? THEYRE SUCH GOOD SONGS !"
+      - "make Spotify available for albania PLEASE"
+      - "ok but why is red velvets new album not on spotify yet. I'm mad"
+      - "does anyone know why Agust D mixtape isn't available on spotify?"
+    patterns:
+      - "(?:isn'?t|not|never) (?:on|available|in) (?:spotify|the app|my country)"
+      - "why (?:is|isn'?t|arent|aren'?t) .{0,40}(?:on spotify|available)"
+      - "(?:add|put) (?:the )?(?:album|song|artist|podcast)"
+      - "when will .{0,40}(?:be on|come to) spotify"
+      - "available (?:in|for) [a-z]+\\?*$"
+      - "can'?t (?:find|see|listen to|hear) .{0,60}(?:on spotify|on here|anywhere)?"
+      - "why can'?t i (?:find|listen|hear)"
+      - "\\bnot on spotify\\b|\\bremoved from spotify\\b"
+      - "launch (?:spotify )?in\\b|(?:bring|come) to (?:spotify )?[a-z]{4,}"
+      - "why (?:can|do) (?:others|other people|everyone) .{0,40}but i can'?t"
+
+  app_crash_performance:
+    description: >
+      The client itself is broken: crashing, freezing, refusing to open, draining
+      battery, hanging after an update, or unusable on a specific device or OS.
+    escalation: auto
+    escalation_reason: >
+      41.7% historical handoff - genuinely mixed, but the first-line answer (reinstall,
+      restart, update, check OS version) is identical across customers and is exactly
+      what the historical corpus contains.
+    examples:
+      - "My app keeps crashing . But tbf so does every other app too but not sure about what phone to get"
+      - "desktop spoiled. Keep causing my laptop become unresponsive and freeze for a long time. Shiit"
+      - "Hey, i'd like to know if one day you'll be able to fix Spotify for desktops cause it's LITERALLY TRASH"
+      - "spotify app won't open on my iphone since the last update"
+    patterns:
+      - "crash(?:es|ing|ed)?\\b|freez(?:e|es|ing)\\b"
+      - "won'?t (?:open|load|start)|keeps? (?:closing|stopping|restarting)"
+      - "unresponsive|lagg?(?:y|ing)|slow"
+      - "since the (?:last )?update|after (?:the )?update"
+      - "battery"
+      - "(?:hasn'?t|not) (?:been )?(?:updated|optimi[sz]ed) for"
+      - "\\bstorage\\b|taking up .{0,15}space"
+
+  playlist_library:
+    description: >
+      Playlists and saved library: playlists vanished or merged, songs disappearing or
+      reappearing, collaborative playlists, sorting, offline downloads that un-download,
+      library not syncing across devices.
+    escalation: auto
+    escalation_reason: >
+      Stable how-to and known-issue answers dominate the historical replies, and the
+      fix is the same regardless of whose account it is.
+    examples:
+      - "I've deleted songs from my playlist but they keep on showing up in my que and they're played. Please fix this issue in the next update"
+      - "Yet again all of my albums have 'un-downloaded' so they can't be listened to off line. is so unreliable"
+      - "In my 'your daily mix' PL, I used to have a PL in the classic rock genre, that has since been replaced by 90's mainstream rap"
+      - "all my playlists disappeared after i logged back in"
+    patterns:
+      - "playlist"
+      - "\\bmy library\\b|saved (?:songs|albums|music)"
+      - "(?:un.?)?download(?:ed|s|ing)?\\b|\\boffline\\b"
+      - "\\bsync(?:ing|ed)?\\b"
+      - "\\bqu?eue\\b"
+      - "song (?:cap|limit)|10,?000 song"
+
+  playback_error:
+    description: >
+      Music will not play correctly: silence, skipping, constant pausing, stuck on
+      shuffle, wrong track playing, connection dropping to Web Player, Connect/casting
+      to a speaker failing.
+    escalation: auto
+    escalation_reason: >
+      The historical corpus is full of reusable step-by-step troubleshooting
+      ("log out, restart the phone, log back in"), which is precisely the kind of
+      evidence this system is built to reuse.
+    examples:
+      - "Spotify will randomly connect to Web Player (which I never use). Logged out of all accounts and changed pwd - still happening."
+      - "y'all see the music I'm searching for y'all play every song after and before it... but never play the song I wanna hear"
+      - "I just plugged into my Ethernet cord and it's giving the same screen"
+      - "why does my music keep pausing every 30 seconds"
+    patterns:
+      - "won'?t play|not play(?:ing)?|can'?t play|stops? playing"
+      - "keeps? (?:skipping|pausing|cutting|buffering|changing|restarting)"
+      - "no sound|no audio"
+      - "\\bshuffle\\b"
+      - "web player|spotify connect|cast(?:ing)? to|sonos|alexa|chromecast"
+      - "failed to connect|can'?t connect|connection (?:error|issue)"
+      - "cut(?:s|ting)? out|skips? (?:on its own|randomly)"
+
+  feature_request_feedback:
+    description: >
+      A product suggestion, a wish, or general praise/criticism with no specific broken
+      thing to fix. Includes "why can't I do X" where X does not exist.
+    escalation: auto
+    escalation_reason: >
+      Lowest measured handoff rate at 14.9%. The historical answer is a consistent
+      acknowledgement plus a pointer to the ideas board, and it promises nothing.
+    examples:
+      - "can we share artist stations that we create?"
+      - "why don't you all have a sleep feature so that I can listen to my music til I fall asleep but not kill my battery?"
+      - "Cmon, we want an excuse to pay, but your radio and music sucks rn. If you need musicians help, let us know."
+      - "would be great if you could sort playlists by date added"
+    patterns:
+      - "please add (?:a|an|the)? ?(?:feature|option|button|setting)"
+      - "would be (?:nice|great|cool|awesome) if"
+      - "suggestion|feature request|feedback"
+      - "wish (?:you|there|spotify)"
+      - "why can'?t (?:i|we|you) (?:just )?"
+      - "any plans to (?:support|add|make)"
+      - "you (?:should|need to|could) (?:add|have|make|let)"
+      - "\\bfix your\\b|we (?:badly )?need"
+
+  other:
+    description: >
+      Anything that does not fall cleanly into the eleven intents above: off-topic
+      chatter, ambiguous one-liners, multi-issue messages, and genuinely novel requests.
+      This bucket is deliberately kept rather than force-fitting messages into a wrong
+      class.
+    escalation: escalate
+    escalation_reason: >
+      If the system cannot say what the customer wants, it has no business answering
+      them automatically. `other` never auto-handles.
+    examples:
+      - "spotify"
+      - "@SpotifyCares hello?"
+      - "I DM'd you guys earlier"
+      - "y'all are the worst"
+    patterns: []

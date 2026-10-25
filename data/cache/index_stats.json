@@ -1,0 +1,22 @@
+{
+  "training_pool": 21422,
+  "seeded": 9066,
+  "seed_rate": 0.4232,
+  "index_size": 13347,
+  "index_seeded": 4523,
+  "index_classifier_labelled": 8824,
+  "classes": [
+    "account_compromised",
+    "app_crash_performance",
+    "billing_charge",
+    "content_unavailable",
+    "family_plan",
+    "feature_request_feedback",
+    "login_access",
+    "playback_error",
+    "playlist_library",
+    "student_discount",
+    "subscription_manage"
+  ],
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+}

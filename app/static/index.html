@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Chat</title>
+<style>
+  :root {
+    --bg: #f6f7f5;
+    --surface: #ffffff;
+    --surface-2: #eef1ee;
+    --border: #dfe3df;
+    --text: #141814;
+    --text-2: #5b635c;
+    --accent: #1a9c4b;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3f4e9;
+    --bubble-me: #1a9c4b;
+    --bubble-me-ink: #ffffff;
+    --warn: #a35a00;
+    --warn-soft: #fff3e0;
+    --warn-border: #f2cf9a;
+    --info: #2d5fb8;
+    --info-soft: #e8effb;
+    --danger: #b3261e;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+    --radius: 18px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1210;
+      --surface: #171b18;
+      --surface-2: #1f2521;
+      --border: #2c332e;
+      --text: #e9ece9;
+      --text-2: #9aa49c;
+      --accent: #2bc964;
+      --accent-ink: #06210f;
+      --accent-soft: #163222;
+      --bubble-me: #23a856;
+      --bubble-me-ink: #ffffff;
+      --warn: #f0b25c;
+      --warn-soft: #2b2113;
+      --warn-border: #5a4320;
+      --info: #8fb3f5;
+      --info-soft: #18233a;
+      --danger: #f2a49e;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex: none;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center;
+  }
+  .avatar svg { width: 20px; height: 20px; }
+  .title { flex: 1; min-width: 0; }
+  .title h1 { font-size: 15px; margin: 0; font-weight: 650; }
+  .status { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .status.handoff .dot { background: var(--warn); }
+  .status.offline .dot { background: var(--danger); }
+  .hbtn {
+    border: 1px solid var(--border); background: transparent; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; color: var(--text-2);
+  }
+  .hbtn:hover { background: var(--surface-2); color: var(--text); }
+  .hbtn[aria-pressed="true"] { background: var(--info-soft); color: var(--info); border-color: transparent; }
+
+  main { flex: 1; overflow-y: auto; }
+  #log { max-width: 760px; margin: 0 auto; padding: 24px 16px 8px; display: flex; flex-direction: column; gap: 14px; }
+
+  .welcome { text-align: center; padding: 32px 8px 8px; }
+  .welcome h2 { font-size: 22px; margin: 12px 0 6px; }
+  .welcome p { color: var(--text-2); margin: 0 auto 20px; max-width: 440px; line-height: 1.5; }
+  .welcome .avatar { width: 52px; height: 52px; margin: 0 auto; }
+  .welcome .avatar svg { width: 28px; height: 28px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+    padding: 8px 14px; font-size: 14px; box-shadow: var(--shadow);
+  }
+  .chip:hover { border-color: var(--accent); }
+
+  .row { display: flex; gap: 10px; align-items: flex-end; }
+  .row.me { justify-content: flex-end; }
+  .row .avatar { width: 28px; height: 28px; }
+  .row .avatar svg { width: 16px; height: 16px; }
+  .stack { display: flex; flex-direction: column; gap: 6px; max-width: min(78%, 560px); }
+  .row.me .stack { align-items: flex-end; }
+  .bubble {
+    padding: 10px 14px; border-radius: var(--radius); line-height: 1.45; font-size: 15px;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .row.bot .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 6px; box-shadow: var(--shadow); }
+  .row.me .bubble { background: var(--bubble-me); color: var(--bubble-me-ink); border-bottom-right-radius: 6px; }
+  .meta { font-size: 12px; color: var(--text-2); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 0 4px; }
+  .meta button { background: none; border: 0; padding: 0; color: var(--info); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+
+  .handoff {
+    border: 1px solid var(--warn-border); background: var(--warn-soft); border-radius: 14px;
+    padding: 12px 14px; font-size: 14px; display: flex; gap: 10px; line-height: 1.45;
+  }
+  .handoff svg { width: 20px; height: 20px; flex: none; color: var(--warn); margin-top: 1px; }
+  .handoff strong { display: block; color: var(--warn); }
+  .handoff small { color: var(--text-2); display: block; margin-top: 4px; }
+
+  .details {
+    background: var(--surface-2); border-radius: 12px; padding: 12px; font-size: 13px;
+    display: none; width: 100%;
+  }
+  .details.open { display: block; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin-bottom: 10px; }
+  .kv dt { color: var(--text-2); }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .tag.AUTO_HANDLE { background: var(--accent-soft); color: var(--accent); }
+  .tag.CLARIFY { background: var(--info-soft); color: var(--info); }
+  .tag.ESCALATE { background: var(--warn-soft); color: var(--warn); }
+  .tag.OUT_OF_SCOPE { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+  .ev { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+  .ev .h { display: flex; justify-content: space-between; color: var(--text-2); font-size: 12px; margin-bottom: 4px; }
+  .ev .used { color: var(--accent); font-weight: 600; }
+  .ev p { margin: 2px 0; line-height: 1.4; }
+  .ev b { font-weight: 600; color: var(--text-2); }
+
+  .typing { display: inline-flex; gap: 4px; padding: 14px 16px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); animation: blink 1.2s infinite both; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .typing span { animation: none; opacity: .6; } }
+
+  .error { color: var(--danger); font-size: 13px; text-align: center; }
+  .error button { background: none; border: 0; color: var(--info); text-decoration: underline; font-size: 13px; }
+
+  footer { background: var(--bg); padding: 8px 16px 16px; }
+  form {
+    max-width: 760px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
+    padding: 6px 6px 6px 16px; box-shadow: var(--shadow);
+  }
+  form:focus-within { border-color: var(--accent); }
+  textarea {
+    flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--text);
+    font: inherit; font-size: 15px; line-height: 1.4; padding: 8px 0; max-height: 160px;
+  }
+  #send {
+    width: 40px; height: 40px; border-radius: 50%; border: 0; flex: none;
+    background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
+  }
+  #send:disabled { opacity: .4; cursor: default; }
+  #send svg { width: 18px; height: 18px; }
+  .fine { max-width: 760px; margin: 8px auto 0; text-align: center; font-size: 12px; color: var(--text-2); }
+
+  @media (max-width: 520px) {
+    .stack { max-width: 86%; }
+    .hbtn .lbl { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="avatar" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  </div>
+  <div class="title">
+    <h1>Support Assistant</h1>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Online · answers from past support cases</span></div>
+  </div>
+  <button class="hbtn" id="toggleDetails" aria-pressed="false" title="Show how each answer was decided">
+    <span aria-hidden="true">⚙</span> <span class="lbl">Agent view</span>
+  </button>
+  <button class="hbtn" id="reset" title="Start a new conversation">
+    <span aria-hidden="true">↺</span> <span class="lbl">New chat</span>
+  </button>
+</header>
+
+<main id="scroller">
+  <div id="log" role="log" aria-live="polite" aria-relevant="additions"></div>
+</main>
+
+<footer>
+  <form id="composer" autocomplete="off">
+    <label for="input" class="sr-only" style="position:absolute;left:-9999px">Message</label>
+    <textarea id="input" rows="1" maxlength="2000" placeholder="Ask about your Spotify account, app or music…"></textarea>
+    <button id="send" type="submit" aria-label="Send" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </form>
+  <p class="fine">AI assistant · replies are drafted from real past support answers and can be wrong. Never share passwords or card numbers.</p>
+</footer>
+
+<script>
+const STORE = "support-chat-v1";
+const SUGGESTIONS = [
+  "My app keeps crashing on Android",
+  "A song I liked is greyed out",
+  "Can I get a lyrics feature?",
+  "I was charged twice this month",
+  "Someone is using my account",
+];
+// Customer-facing wording for each escalation rule; the raw reason stays in Agent view.
+const HANDOFF_TEXT = {
+  high_risk_language: "This involves a payment, legal or security matter, so a person needs to handle it.",
+  intent_requires_human: "This needs someone who can look at your account directly.",
+  intent_abstained: "I wasn't able to understand the request well enough to help reliably.",
+  low_confidence: "I wasn't able to understand the request well enough to help reliably.",
+  insufficient_evidence: "I don't have a reliable answer for this one.",
+  weak_retrieval: "I don't have a reliable answer for this one.",
+  conflicting_evidence: "There isn't one clear answer to this, so a specialist should take a look.",
+  historically_human_handled: "Issues like this are usually solved by a specialist.",
+  generator_unavailable: "The assistant is having trouble right now.",
+  already_handed_off: "Your conversation is already with the support team.",
+};
+
+const $ = (id) => document.getElementById(id);
+const log = $("log"), input = $("input"), send = $("send"), scroller = $("scroller");
+let messages = [];   // [{role, content, action?, meta?}]
+let showDetails = false;
+let pending = false;
+
+function load() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(STORE) || "{}");
+    messages = Array.isArray(s.messages) ? s.messages : [];
+    showDetails = !!s.showDetails;
+  } catch { messages = []; }
+}
+function save() {
+  try { sessionStorage.setItem(STORE, JSON.stringify({ messages, showDetails })); } catch {}
+}
+
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) n.append(k);
+  return n;
+}
+const botAvatar = () => {
+  const a = el("div", { class: "avatar", "aria-hidden": "true" });
+  a.innerHTML = document.querySelector("header .avatar").innerHTML;
+  return a;
+};
+const handedOff = () => messages.some((m) => m.action === "ESCALATE");
+
+function renderWelcome() {
+  const w = el("div", { class: "welcome" }, botAvatar(),
+    el("h2", {}, "Hi! How can I help?"),
+    el("p", {}, "Tell me what's going on with your account, app or music. If it's something I can't safely solve, I'll pass you to a support specialist."),
+  );
+  const chips = el("div", { class: "chips" });
+  for (const s of SUGGESTIONS) chips.append(el("button", { class: "chip", type: "button", onclick: () => submit(s) }, s));
+  w.append(chips);
+  log.append(w);
+}
+
+function renderDetails(m) {
+  const d = m.meta;
+  const box = el("div", { class: "details" + (showDetails ? " open" : "") });
+  const kv = el("dl", { class: "kv" });
+  const add = (k, v) => kv.append(el("dt", {}, k), el("dd", {}, v));
+  add("Action", el("span", { class: "tag " + m.action }, m.action));
+  if (m.action !== "OUT_OF_SCOPE") add("Intent", `${d.intent} (${(d.intent_confidence * 100).toFixed(0)}% confidence)`);
+  add("Rule", d.rule);
+  add("Reason", d.reason);
+  if (d.reply_confidence != null) add("Grounding", `${(d.reply_confidence * 100).toFixed(0)}% (model's own estimate)`);
+  box.append(kv);
+  const used = new Set(d.evidence_ids || []);
+  (d.evidence || []).forEach((e, i) => {
+    box.append(el("div", { class: "ev" },
+      el("div", { class: "h" },
+        el("span", {}, `Past case ${i + 1} · ${e.intent}${e.was_handoff ? " · went to human" : ""}`),
+        used.has(e.evidence_id) ? el("span", { class: "used" }, "used in reply") : el("span", {}, `${(e.similarity * 100).toFixed(0)}% similar`)),
+      el("p", {}, el("b", {}, "Customer: "), e.customer_message),
+      el("p", {}, el("b", {}, "Support: "), e.resolution)));
+  });
+  return box;
+}
+
+function renderMessage(m) {
+  if (m.role === "customer") {
+    log.append(el("div", { class: "row me" }, el("div", { class: "stack" }, el("div", { class: "bubble" }, m.content))));
+    return;
+  }
+  const stack = el("div", { class: "stack" }, el("div", { class: "bubble" }, m.content));
+  if (m.action === "ESCALATE" && m.meta) {
+    const icon = el("span", { "aria-hidden": "true" });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+    stack.append(el("div", { class: "handoff" }, icon, el("div", {},
+      el("strong", {}, m.meta.rule === "already_handed_off" ? "With a support specialist" : "Passing you to a support specialist"),
+      HANDOFF_TEXT[m.meta.rule] || "This needs a member of the support team.",
+      el("small", {}, "Demo build: no live agent queue is connected yet."))));
+  }
+  if (m.meta) {
+    const box = renderDetails(m);
+    const n = (m.meta.evidence_ids || []).length;
+    const toggle = el("button", { type: "button", onclick: () => box.classList.toggle("open") }, "Why this answer?");
+    stack.append(el("div", { class: "meta" },
+      el("span", {}, m.action === "OUT_OF_SCOPE" ? "Outside Spotify support"
+        : n ? `Based on ${n} past support case${n > 1 ? "s" : ""}` : "No past case cited"), toggle), box);
+  }
+  log.append(el("div", { class: "row bot" }, botAvatar(), stack));
+}
+
+function render() {
+  log.replaceChildren();
+  if (!messages.length) renderWelcome();
+  messages.forEach(renderMessage);
+  const st = $("status");
+  st.classList.toggle("handoff", handedOff());
+  $("statusText").textContent = handedOff() ? "Handed to support team" : "Online · answers from past support cases";
+  $("toggleDetails").setAttribute("aria-pressed", String(showDetails));
+  scroller.scrollTop = scroller.scrollHeight;
+}
+
+function showTyping() {
+  const t = el("div", { class: "row bot", id: "typing" }, botAvatar(),
+    el("div", { class: "bubble typing", "aria-label": "Assistant is typing" }, el("span"), el("span"), el("span")));
+  t.querySelector(".bubble").style.cssText = "background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)";
+  log.append(t);
+  scroller.scrollTop = scroller.scrollHeight;
+}
+
+async function ask() {
+  pending = true; updateSend(); showTyping();
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messages.slice(-40).map(({ role, content, action }) => ({ role, content, action: action || null })) }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+    const d = await res.json();
+    messages.push({ role: "assistant", content: d.reply, action: d.action, meta: d });
+    save(); render();
+  } catch (err) {
+    $("typing")?.remove();
+    log.append(el("div", { class: "error" }, `Couldn't reach the assistant (${err.message}). `,
+      el("button", { type: "button", onclick: () => { render(); ask(); } }, "Try again")));
+    scroller.scrollTop = scroller.scrollHeight;
+  } finally {
+    pending = false; updateSend();
+  }
+}
+
+function submit(text) {
+  text = (text ?? input.value).trim();
+  if (!text || pending) return;
+  messages.push({ role: "customer", content: text });
+  input.value = ""; autosize(); save(); render(); ask();
+}
+
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; }
+function updateSend() { send.disabled = pending || !input.value.trim(); }
+
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+input.addEventListener("input", () => { autosize(); updateSend(); });
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }
+});
+$("reset").addEventListener("click", () => { messages = []; save(); render(); input.focus(); });
+$("toggleDetails").addEventListener("click", () => {
+  showDetails = !showDetails; save();
+  document.querySelectorAll(".details").forEach((d) => d.classList.toggle("open", showDetails));
+  $("toggleDetails").setAttribute("aria-pressed", String(showDetails));
+});
+
+fetch("/api/health").then((r) => r.json()).then((h) => {
+  if (!h.ok) throw 0;
+}).catch(() => {
+  $("status").classList.add("offline");
+  $("statusText").textContent = "Offline · server not reachable";
+});
+
+load(); render(); input.focus();
+</script>
+</body>
+</html>
